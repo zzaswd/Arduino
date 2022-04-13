@@ -5,7 +5,7 @@ Servo character1;
 Servo character2;
 Servo character3;
 
-#define IRrev A1
+#define IRrev 2
 IRrecv irrecv(IRrev);
 decode_results res;
 
@@ -28,24 +28,17 @@ void setup() {
 }
 
 
-
 void loop() {
-
-//  if (irrecv.decode(&res)){
-//    Serial.println(res.value,HEX);
-//    irrecv.resume();
-//  }
-// E1A2748B --  <==
-//  E1A2847B -- 가운데
-// E1A254AB -- ==>
-
+//FF30CF -- 1번
+//FF18E7 -- 2번
+//FF7A85 -- 3번
 
   if (irrecv.decode(&res)){
     irrecv.resume();
     Serial.println(res.value,HEX);
     switch(res.value){
     // --------------------------------- 캐릭터 1번
-    case 0xE1A2748B: // <== 눌렸다면
+    case 0xFF30CF: // <== 눌렸다면
       if(state1==1){
         pre1_time = millis();
         character1.write(90); // 그럼 쓰러져
@@ -57,7 +50,7 @@ void loop() {
       }
       break;
     // --------------------------------- 캐릭터 2번
-    case 0xE1A2847B:
+    case 0xFF18E7:
       if(state2==1){
         pre2_time = millis();
         character2.write(90); // 그럼 쓰러져
@@ -70,7 +63,7 @@ void loop() {
       break;
 
     // --------------------------------- 캐릭터 3번
-    case 0xE1A254AB:
+    case 0xFF7A85:
       if(state3==1){
         pre3_time = millis();
         character3.write(90); // 그럼 쓰러져
