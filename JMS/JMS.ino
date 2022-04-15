@@ -6,6 +6,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 void setScreen();
 void gameScreen();
 void regameScreen();
+char score;
 
 int buttonPin = 6;
 // ------------------------------------- RFID
@@ -28,19 +29,28 @@ int count =5;
 // 회원 가입 및 금액 충전을 가정.
 int id[3][4]={{195,71,234,17},{147,95,142,13}};
 int cash[3] = {500,3000,3000}; 
-int idx = -1;
+int idx = 0;
 
 // ------------------------------------- Serial 통신
 #include <SoftwareSerial.h>
 #define TX 7
 #define RX 8
-#define sound 5
 SoftwareSerial soft_Serial(TX,RX);
-String game_stat ="gameend";
+String game_stat ="gameend,";
 
 // ------------------------------------- Interrupt
 int pause = 0;
 int pause_led = 4;
+unsigned long pre_time = 0;
+unsigned long cur_time = 0;
+
+
+// ------------------------------------- Sound
+#define sound 5
+int Victoty[] ={784, 988, 1175, 1568} ;
+int Gameover[] = {247, 233, 220, 208, 196};
+int Pay[] = {330, 311, 294};
+
 
 void setup() {
 // ------------------------------------- LCD
@@ -107,7 +117,9 @@ void gameScreen(){
     lcd.setCursor(0, 1);
     lcd.print("    ( ^ _ ^ )   ");
     tone(sound,1175);
-    delay(2000);
+    delay(1500);
+    game_stat = "gamestart,";
+    soft_Serial.print(game_stat+idx+","+pause);
     noTone(sound);
     
     int i = 5;
@@ -123,22 +135,57 @@ void gameScreen(){
       }
            
       else{
-          lcd.setCursor(2,0); 
+          lcd.setCursor(2,0);
+          lcd.print("Your ID : ");
+          lcd.print(idx);
+          
+          lcd.setCursor(0,1); 
           lcd.print("Your Time : ");
-          lcd.setCursor(3,1);
-          lcd.print("   ");
           lcd.print(i);
-          lcd.print("        ");
+          lcd.print("  ");
           i--;
           delay(1000);
       }
     }
+    game_stat = "gameend,";
+    soft_Serial.print(game_stat+idx+","+pause);
+    
     lcd.clear();
+    
     lcd.setCursor(1,0);
     lcd.print("Congraturation!");
-    lcd.setCursor(2,1);
+    lcd.setCursor(0,1);
     lcd.print("Your Score : ");
-    delay(2000);
+    
+
+    
+
+    while(soft_Serial.available()){
+       score = soft_Serial.read();
+       delay(1);
+       lcd.print(score);
+    }
+
+    // 게임 축하 사운드
+//    tone(sound,784);
+//    delay(500);
+//    tone(sound,988);
+//    delay(500);
+//    tone(sound,1175);
+//    delay(500);
+//    tone(sound,1568);
+//    delay(1000);
+//    noTone(sound);
+      int k = 0;
+      while(k<4){
+      tone(sound, Victoty[k]);
+      delay(500);
+      k++;
+      }
+      
+      noTone(sound);
+    
+    delay(1000);
     state = 2;
 }
 
@@ -165,10 +212,29 @@ void regameScreen(){
     lcd.print("Game Over..");
     lcd.setCursor(0,1);
     lcd.print("     ( =_=) //   ");
-// 게임 종료 사운드
+    // 게임 종료 사운드
+//    tone(sound,247);
+//    delay(200);
+//    tone(sound,233);
+//    delay(200);
+//    tone(sound,220);
+//    delay(200);
+//    tone(sound,208);
+//    delay(200);
+//    tone(sound,196);
+//    delay(500);
+//    noTone(sound);
+      int M = 0;
+      while(M<5){
+      tone(sound, Gameover[M]);
+      delay(200);
+      noTone(sound);
+      M++;
+      }
 
-    tone(sound,
-    delay(3000);
+    game_stat = "gameend,";
+    soft_Serial.print(game_stat+idx+","+pause);
+    delay(1700);
     state=0;
 }
 
@@ -220,16 +286,23 @@ void pay(){
                          lcd.print("balance : "); 
                          lcd.print(cash[i]); 
                          idx = i;                 // 송신 위해 아이디 저장
-                         game_stat = "gamestart";
-                         soft_Serial.print(game_stat+idx+"#"+pause);
-                         tone(sound,330);
-                         delay(100);
-                         tone(sound,311);
-                         delay(100);
-                         tone(sound,294);
-                         delay(100);
+
+//                         tone(sound,330);
+//                         delay(100);
+//                         tone(sound,311);
+//                         delay(100);
+//                         tone(sound,294);
+//                         delay(100);
+//                         noTone(sound);
+//                         delay(1700);
+                         int n = 0;
+                         while(n<3){
+                         tone(sound, Pay[n]);
+                         delay(200);
                          noTone(sound);
-                         delay(1700);
+                         n++;
+                         }
+
                          state = 1;
                          break;
                        }
@@ -256,6 +329,12 @@ void pay(){
 }
 
 void Pause(){
-  pause = !pause;
-  digitalWrite(pause_led, pause);
+  
+//  cur_time =millis();
+//  if(cur_time - pre_time >= 500){ 
+//      pre_time = cur_time;
+      pause = !pause;
+//      soft_Serial.print(game_stat+idx+","+pause);
+      digitalWrite(pause_led, pause);
+//  }
 }

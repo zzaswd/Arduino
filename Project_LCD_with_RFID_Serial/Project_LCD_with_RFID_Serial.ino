@@ -1,14 +1,22 @@
-// ------------------------------------- LCD
+//=============================
+//   LCD Declare
+//=============================
 #include <LiquidCrystal_I2C.h>
-
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 void setScreen();
 void gameScreen();
 void regameScreen();
 
-int buttonPin = 6;
-// ------------------------------------- RFID
+
+char score;
+int state = 0; // 현재 상태에 따라 무슨 함수를 진행할 지 선택.
+int buttonPin = 6; // Regame 선택하기 위한 버튼.
+
+
+//=============================
+//   RFID Declare
+//=============================
 #include <SPI.h> // SPI 통신을 위한 라이브러리
 #include <MFRC522.h>
 
@@ -28,51 +36,78 @@ int count =5;
 // 회원 가입 및 금액 충전을 가정.
 int id[3][4]={{195,71,234,17},{147,95,142,13}};
 int cash[3] = {500,3000,3000}; 
-int idx = -1;
+int idx = 0;
 
-// ------------------------------------- Serial 통신
+
+//=============================
+//   Serial Declare
+//=============================
 #include <SoftwareSerial.h>
 #define TX 7
 #define RX 8
-
 SoftwareSerial soft_Serial(TX,RX);
-String game_stat ="gameend";
+String game_stat ="gameend,";
 
-// ------------------------------------- Interrupt
+//=============================
+//   Interrupt Declare
+//=============================
 int pause = 0;
-int pause_led = 13;
+int pause_led = 4;
+unsigned long pre_time = 0;
+unsigned long cur_time = 0;
 
+
+//=============================
+//   Sound Declare
+//=============================
+#define sound 5
+int Victoty[] ={784, 988, 1175, 1568} ;
+int Gameover[] = {247, 233, 220, 208, 196};
+int Pay[] = {330, 311, 294};
 
 void setup() {
-// ------------------------------------- LCD
+//=============================
+//   LCD Setup
+//=============================
   lcd.init();
   lcd.backlight();
-
-// ------------------------------------- RFID
-  Serial.begin(9600);
-  SPI.begin();
-  mfrc.PCD_Init(); // UID tag 값 확인할 것.
   
-// ------------------------------------- Serial 통신
+//=============================
+//   RFID Setup
+//=============================
+  SPI.begin();
+  mfrc.PCD_Init(); 
+  
+//=============================
+//   Serial Setup
+//=============================
   soft_Serial.begin(9600);
 
-// ------------------------------------- Interrupt
-  attachInterrupt(0,pause,FALLING); 
+//=============================
+//   Interrupt Setup
+//=============================
   pinMode(pause_led,OUTPUT);
+  attachInterrupt(0, Pause, FALLING);  // Pull_UP 회로 이용.
+
+//=============================
+//   Sound Setup
+//=============================
+  pinMode(sound,OUTPUT);
 }
 
-int state = 0;
-
 void loop() {
-  
-    if(state == 0){  setScreen();  state =-1;}
-    if(state == -1 ){
-       pay();
-    }
-    if(count == -1){   state =1;  }
+    // state 0 : default screen.
+    // state -1 : pay.
+    // state 1 : game start.
+    // state 2 : regame quest.
+
+    // count 
+    if(state ==  0)  {  setScreen();  state =-1;  }
+    if(state == -1)     pay();
+//    if(count == -1)     state =1;  
     
-    if(state ==1){    gameScreen();  }
-    if(state ==2){   regameScreen();  }
+    if(state ==1)       gameScreen();  
+    if(state ==2)       regameScreen();  
   
 }
 
@@ -80,7 +115,7 @@ void setScreen(){
     lcd.setCursor(0,0);
     lcd.print("Welcome Baby    ");
     lcd.setCursor(0,1);
-    lcd.print("hurry up!");
+    lcd.print("hurry up!       ");
     delay(100);
 }
 
@@ -89,53 +124,83 @@ void gameScreen(){
     lcd.print("Get Ready !!!");
     delay(1000);
 
-    lcd.clear();
+    int z = 3;
+    while(z) {
     lcd.setCursor(6, 1);
-    lcd.print("3");
-    delay(1000);
-
-    lcd.clear();
-    lcd.setCursor(6, 1);
-    lcd.print("2");
-    delay(1000);
-
-    lcd.clear();
-    lcd.setCursor(6, 1);
-    lcd.print("1");
-    delay(1000);
-
-    lcd.clear();
-    lcd.setCursor(3, 1);
-    lcd.print("Game Start");
+    lcd.print(z);
+    lcd.print(" ");
+    z--;
+    tone(sound,784);
+    delay(500);
+    noTone(sound);
+    delay(500);
+    }
     
-    delay(1000);
-    
-    int i = 15;
+
     lcd.clear();
-    lcd.setCursor(2,0); 
-    lcd.print("your Time : ");
+    lcd.setCursor(2, 0);
+    lcd.print("Game Start !!");
+    lcd.setCursor(0, 1);
+    lcd.print("    ( ^ _ ^ )   ");
+    tone(sound,1175);
+    delay(1000);
+    game_stat = "gamestart,";
+    soft_Serial.print(game_stat+idx+","+pause);
+    noTone(sound);
+    
+    int i = 30;
+    lcd.clear();
+    
     while(i){
       if(pause == 1){
         lcd.setCursor(0,0);
-        lcd.print("     pause !!   ");
+        lcd.print("    pause !!   ");
         lcd.setCursor(0,1);
-        lcd.print("  asdfasfd");
+        lcd.print("    ( >_< )/    ");
         
       }
            
       else{
-          lcd.setCursor(6,1);
+          lcd.setCursor(2,0);
+          lcd.print("Your ID : ");
+          lcd.print(idx);
+          
+          lcd.setCursor(0,1); 
+          lcd.print("Your Time : ");
           lcd.print(i);
-          lcd.print(" ");
+          lcd.print("  ");
           i--;
           delay(1000);
       }
     }
+    game_stat = "gameend,";
+    soft_Serial.print(game_stat+idx+","+pause);
+    
     lcd.clear();
+    
     lcd.setCursor(1,0);
     lcd.print("Congraturation!");
-    lcd.setCursor(2,1);
-    lcd.print("your score : ");
+    lcd.setCursor(0,1);
+    lcd.print("Your Score : ");
+    
+
+    
+
+    while(soft_Serial.available()){
+       score = soft_Serial.read();
+       delay(1);
+       lcd.print(score);
+    }
+
+    // 게임 축하 사운드
+    int s = 0;
+    while(s<4){
+      tone(sound, Victoty[s]);
+      delay(500);
+      s++;
+    }
+      
+    noTone(sound);
     delay(1000);
     state = 2;
 }
@@ -144,7 +209,7 @@ void regameScreen(){
     int j = 5;
     lcd.clear();
     lcd.setCursor(1,0);
-    lcd.print("one more time ?");
+    lcd.print("One more time ?");
     while(j) {
         if(digitalRead(buttonPin)==HIGH){
           state=-1;
@@ -161,11 +226,22 @@ void regameScreen(){
     }
     lcd.clear();
     lcd.print("Game Over..");
-    delay(1000);
+    lcd.setCursor(0,1);
+    lcd.print("     ( =_=) //   ");
+    // 게임 종료 사운드
+    int s = 0;
+      while(s<5){
+      tone(sound, Gameover[s]);
+      delay(200);
+      s++;
+    }
+    delay(300);
+    noTone(sound);
+    game_stat = "gameend,";
+    soft_Serial.print(game_stat+idx+","+pause);
+    delay(1700);
     state=0;
 }
-
-
 
 void pay(){
     static int check = 0;
@@ -177,7 +253,7 @@ void pay(){
     
     if(!mfrc.PICC_ReadCardSerial()) // 예외처리 2
       return; 
-
+ 
 
     if(millis()-tag_time<=500){   // 0.5초 안에 연속으로 인식 되지 않으면 --> 즉, 카드를 뗀다면 다시 count =5으로.
       check = 0;
@@ -215,9 +291,15 @@ void pay(){
                          lcd.print("balance : "); 
                          lcd.print(cash[i]); 
                          idx = i;                 // 송신 위해 아이디 저장
-                         game_stat = "gamestart";
-                         soft_Serial.print(game_stat+idx+"#"+pause);
-                         delay(2000);
+                          
+                         int s = 0;
+                           while(s<3){
+                             tone(sound, Pay[s]);
+                             delay(100);
+                             s++;
+                           }
+                         noTone(sound);
+                         delay(1700);
                          state = 1;
                          break;
                        }
@@ -244,6 +326,12 @@ void pay(){
 }
 
 void Pause(){
-  pause = !pause;
-  digitalWrite(pause_led,pause);
+  
+  cur_time =millis();
+  if(cur_time - pre_time >= 500){ 
+      pre_time = cur_time;
+      pause = !pause;
+      soft_Serial.print(game_stat+idx+","+pause);
+      digitalWrite(pause_led, pause);
+  }
 }

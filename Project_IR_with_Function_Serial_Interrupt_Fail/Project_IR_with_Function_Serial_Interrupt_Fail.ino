@@ -2,6 +2,7 @@
 #include <Servo.h>
 #include <SoftwareSerial.h>
 #include <string.h>
+#include <MsTimer2.h>
 
 #define TX 7
 #define RX 8
@@ -11,7 +12,7 @@ Servo character1;
 Servo character2;
 Servo character3;
 
-#define IRrev 2
+#define IRrev A2
 IRrecv irrecv(IRrev);
 decode_results res;
 
@@ -25,6 +26,12 @@ int state2 = 0;
 int state3 = 0;
 unsigned long start_time = 0;
 
+String game_stat;
+char ID;
+char pause;
+
+void isr();
+
 void setup() {
  Serial.begin(9600);
  character1.attach(3);
@@ -33,41 +40,29 @@ void setup() {
  irrecv.enableIRIn();
  randomSeed(analogRead(0));
  soft_Serial.begin(9600);
+ MsTimer2::set(200,isr);
+ MsTimer2::start();
+ 
 }
+
 
 int score = 0;
 
 void RecvMotor(int game_time,unsigned long start_time);
 
-String game_stat;
-char ID;
-char pause;
+
 
 
 void loop() {
-      char mystring[20];
-      int i= 0;
-      while(soft_Serial.available()){
-        mystring[i++] = soft_Serial.read();
-        delay(1);
-      }
-      mystring[i] = '\0';
       
-      char* ptr = strtok(mystring, ",");
-      game_stat = ptr;
-      ptr = strtok(NULL,",");
-      ID = *ptr;
-      ptr = strtok(NULL,",");
-      pause = *ptr;
 
-     if (game_stat == "gameend")
-        Serial.println("end");
+//     if (game_stat == "gameend"){
+//        Serial.println("end");
 
-      
-      
       if(game_stat == "gamestart"){
-        RecvMotor(5,millis());
+        RecvMotor(30,millis());
         delay(1000);
+        game_stat = "gameend";
         Serial.println("게임종료");
       }
       
@@ -82,7 +77,14 @@ void RecvMotor(int game_time,unsigned long start_time){
   unsigned long pre_time = 0;
   int total_time = game_time;
   while(millis()-start_time<=total_time*1000 ){
-    
+      
+    if(pause=='1'){
+      Serial.println("갇혔다");
+      delay(500);
+      start_time += 500;
+      continue;
+    }
+      
     if(millis()-pre_time >999){
       Serial.println(game_time--);
       pre_time = millis();
@@ -90,6 +92,7 @@ void RecvMotor(int game_time,unsigned long start_time){
     
     //FF30CF -- 1번   FF18E7 -- 2번   FF7A85 -- 3번
   if (irrecv.decode(&res)){
+    Serial.println(res.value,HEX);
     switch(res.value){
     // --------------------------------- 캐릭터 1번
     case 0xFF30CF: // <== 눌렸다면
@@ -176,4 +179,36 @@ void RecvMotor(int game_time,unsigned long start_time){
   character3.write(90);
   soft_Serial.print(score);
   score = 0;
+}
+
+
+void isr(){
+      char mystring[20];
+      int i= 0;
+      while(soft_Serial.available()){
+        mystring[i++] = soft_Serial.read();
+        delay(1);
+      }
+      mystring[i] = '\0';
+      
+      char* ptr = strtok(mystring, ",");
+      if(ptr!=NULL){
+      game_stat = ptr;
+      Serial.print("game_stat = ");
+      Serial.println(game_stat);   
+      }
+      ptr = strtok(NULL,",");
+      if(ptr!=NULL){
+      ID = *ptr;
+      Serial.print("ID = ");
+      Serial.println(ID);   
+      }
+      ptr = strtok(NULL,",");
+      
+      if(ptr!=NULL){
+      pause = *ptr;
+      Serial.print("pause = ");
+      Serial.println(pause);   
+      }  
+      
 }
